@@ -37,6 +37,11 @@ export const env = {
   ghlCalendarId: process.env.GHL_CALENDAR_ID ?? '',
   ghlAssignedUserId: process.env.GHL_ASSIGNED_USER_ID ?? '',
 
+  // Email (Gmail SMTP) - used to send a call transcript backup on request
+  smtpUser: required('SMTP_USER'),
+  smtpAppPassword: required('SMTP_APP_PASSWORD'),
+  transcriptEmailTo: process.env.TRANSCRIPT_EMAIL_TO ?? 'sales@goldenleadgeneration.com.au',
+
   // Misc
   timezone: process.env.BUSINESS_TIMEZONE ?? 'Australia/Sydney',
 };

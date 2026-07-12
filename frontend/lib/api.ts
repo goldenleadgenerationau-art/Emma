@@ -49,3 +49,11 @@ export function logTranscriptLine(sessionId: string, role: 'caller' | 'emma', te
     /* transcript logging is best-effort; never break the call over it */
   });
 }
+
+export function emailTranscript(sessionId: string) {
+  return postJson('/api/transcript/email', { sessionId });
+}
+
+export function emailTranscriptToCaller(sessionId: string) {
+  return postJson('/api/transcript/email-caller', { sessionId });
+}

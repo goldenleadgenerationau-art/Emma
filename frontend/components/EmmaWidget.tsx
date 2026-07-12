@@ -1,7 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { startCallSession, logTranscriptLine } from '@/lib/api';
+import {
+  startCallSession,
+  logTranscriptLine,
+  emailTranscript,
+  emailTranscriptToCaller,
+} from '@/lib/api';
 import { connectRealtime, type RealtimeConnection } from '@/lib/realtime';
 
 interface TranscriptLine {
@@ -27,6 +32,11 @@ export default function EmmaWidget() {
   const [compatMessage, setCompatMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [typedReply, setTypedReply] = useState('');
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [callerEmailStatus, setCallerEmailStatus] = useState<
+    'idle' | 'sending' | 'sent' | 'error'
+  >('idle');
+  const [callerEmailError, setCallerEmailError] = useState('');
 
   const sessionIdRef = useRef<string | null>(null);
   const connectionRef = useRef<RealtimeConnection | null>(null);
@@ -62,6 +72,7 @@ export default function EmmaWidget() {
 
   const endCall = useCallback(() => {
     const wasActive = callActive;
+    const endedSessionId = sessionIdRef.current;
     setCallActive(false);
     setConnecting(false);
     stopTimer();
@@ -74,7 +85,19 @@ export default function EmmaWidget() {
     micStreamRef.current = null;
 
     setStatus('Call ended');
-    if (wasActive) appendLine('Emma', 'Thanks for calling. Have a great day.');
+    if (wasActive) {
+      appendLine('Emma', 'Thanks for calling. Have a great day.');
+      // Internal backup copy for every enquiry, sent automatically the moment
+      // the call ends - best-effort, same as transcript line logging. The
+      // manual "Email this transcript" button below still works as a resend.
+      if (endedSessionId) {
+        emailTranscript(endedSessionId)
+          .then(() => setEmailStatus('sent'))
+          .catch(() => {
+            /* automatic send is best-effort; the manual button can retry */
+          });
+      }
+    }
   }, [callActive, appendLine, setStatus, stopTimer, clearReconnectTimeout]);
 
   useEffect(() => {
@@ -99,6 +122,9 @@ export default function EmmaWidget() {
     setErrorMessage('');
     setConnecting(true);
     setTranscript([]);
+    setEmailStatus('idle');
+    setCallerEmailStatus('idle');
+    setCallerEmailError('');
     setStatus('Connecting…');
 
     try {
@@ -197,6 +223,32 @@ export default function EmmaWidget() {
     );
     dataChannel.send(JSON.stringify({ type: 'response.create' }));
   }, [typedReply, callActive, appendLine]);
+
+  const handleEmailTranscript = useCallback(async () => {
+    if (!sessionIdRef.current || emailStatus === 'sending') return;
+    setEmailStatus('sending');
+    try {
+      await emailTranscript(sessionIdRef.current);
+      setEmailStatus('sent');
+    } catch {
+      setEmailStatus('error');
+    }
+  }, [emailStatus]);
+
+  const handleEmailCallerTranscript = useCallback(async () => {
+    if (!sessionIdRef.current || callerEmailStatus === 'sending') return;
+    setCallerEmailStatus('sending');
+    setCallerEmailError('');
+    try {
+      await emailTranscriptToCaller(sessionIdRef.current);
+      setCallerEmailStatus('sent');
+    } catch (error) {
+      setCallerEmailStatus('error');
+      setCallerEmailError(
+        error instanceof Error ? error.message : 'Could not send the transcript email.'
+      );
+    }
+  }, [callerEmailStatus]);
 
   const waveActive = callActive && speaking;
   const timerLabel = formatTime(elapsedMs);
@@ -316,6 +368,38 @@ export default function EmmaWidget() {
               ))
             )}
           </div>
+          {transcript.length > 0 && (
+            <div className="email-backup">
+              <button
+                type="button"
+                onClick={handleEmailCallerTranscript}
+                disabled={callerEmailStatus === 'sending' || callerEmailStatus === 'sent'}
+              >
+                {callerEmailStatus === 'sending'
+                  ? 'Sending…'
+                  : callerEmailStatus === 'sent'
+                    ? 'Sent to your email ✓'
+                    : 'Email me this conversation'}
+              </button>
+              <button
+                type="button"
+                onClick={handleEmailTranscript}
+                disabled={emailStatus === 'sending' || emailStatus === 'sent'}
+              >
+                {emailStatus === 'sending'
+                  ? 'Sending…'
+                  : emailStatus === 'sent'
+                    ? 'Emailed ✓'
+                    : 'Email this transcript as a backup'}
+              </button>
+              {callerEmailStatus === 'error' && (
+                <span className="email-backup-error">{callerEmailError}</span>
+              )}
+              {emailStatus === 'error' && (
+                <span className="email-backup-error">Could not send the email. Try again.</span>
+              )}
+            </div>
+          )}
           <div className="privacy">
             This call runs on OpenAI&apos;s Realtime API for voice and GoHighLevel for CRM, SMS
             and email follow-up. Audio is processed live and is not stored by this page.

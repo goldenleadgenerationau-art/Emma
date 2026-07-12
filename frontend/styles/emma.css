@@ -95,6 +95,10 @@
     .bubble{font-size:14px;line-height:1.5;color:#f5f2eb}
     .message.user .bubble{color:#d1cec8}
     .empty{color:#777;font-size:13px;line-height:1.5}
+    .email-backup{margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .email-backup button{border:1px solid rgba(213,164,59,.35);border-radius:11px;padding:9px 14px;background:transparent;color:#ead9ae;font-size:12px;font-weight:700;cursor:pointer}
+    .email-backup button:disabled{opacity:.6;cursor:default}
+    .email-backup-error{font-size:11px;color:#e99696}
     .privacy{margin-top:14px;font-size:11px;color:#777;line-height:1.5}
     .compat{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:#241d0e;border:1px solid rgba(213,164,59,.32);color:#ead9ae;font-size:12px;line-height:1.45}
     .compat.show{display:block}
