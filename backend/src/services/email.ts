@@ -1,24 +1,40 @@
-import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 import type { CallSession } from '../types/lead';
 
 export class EmailConfigError extends Error {}
 
-let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+const RESEND_API_URL = 'https://api.resend.com/emails';
 
-function getTransporter() {
-  if (!env.smtpUser || !env.smtpAppPassword) {
+/**
+ * Sends via Resend's HTTP API rather than SMTP. Render's free tier blocks
+ * outbound SMTP ports (25/465/587) entirely, which made Gmail SMTP hang
+ * forever with no error - HTTPS to Resend's API isn't affected by that.
+ */
+async function sendViaResend(payload: { to: string; subject: string; text: string }): Promise<void> {
+  if (!env.resendApiKey || !env.emailFrom) {
     throw new EmailConfigError(
-      'Email is not configured. Set SMTP_USER and SMTP_APP_PASSWORD in your .env file.'
+      'Email is not configured. Set RESEND_API_KEY and EMAIL_FROM in your .env file.'
     );
   }
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: env.smtpUser, pass: env.smtpAppPassword },
-    });
+
+  const response = await fetch(RESEND_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.emailFrom,
+      to: payload.to,
+      subject: payload.subject,
+      text: payload.text,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Resend email send failed (${response.status}): ${body}`);
   }
-  return transporter;
 }
 
 function formatLeadSummary(lead: CallSession['lead']): string {
@@ -58,13 +74,11 @@ export class NoCallerEmailError extends Error {}
 
 /** Internal backup copy, sent to the business's own inbox (TRANSCRIPT_EMAIL_TO). */
 export async function sendInternalTranscriptEmail(session: CallSession): Promise<void> {
-  const transport = getTransporter();
   const callDate = new Date(session.createdAt).toLocaleString('en-AU', {
     timeZone: env.timezone,
   });
 
-  await transport.sendMail({
-    from: env.smtpUser,
+  await sendViaResend({
     to: env.transcriptEmailTo,
     subject: `Emma call transcript backup - ${callDate}`,
     text: [
@@ -89,14 +103,12 @@ export async function sendCallerTranscriptEmail(session: CallSession): Promise<v
     );
   }
 
-  const transport = getTransporter();
   const callDate = new Date(session.createdAt).toLocaleString('en-AU', {
     timeZone: env.timezone,
   });
   const firstName = session.lead.firstName ? `, ${session.lead.firstName}` : '';
 
-  await transport.sendMail({
-    from: env.smtpUser,
+  await sendViaResend({
     to: callerEmail,
     subject: 'Your conversation with Emma - Golden Lead Generation',
     text: [

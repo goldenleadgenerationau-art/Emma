@@ -37,9 +37,10 @@ export const env = {
   ghlCalendarId: process.env.GHL_CALENDAR_ID ?? '',
   ghlAssignedUserId: process.env.GHL_ASSIGNED_USER_ID ?? '',
 
-  // Email (Gmail SMTP) - used to send a call transcript backup on request
-  smtpUser: required('SMTP_USER'),
-  smtpAppPassword: required('SMTP_APP_PASSWORD'),
+  // Email (Resend HTTP API) - used to send a call transcript backup on request.
+  // HTTP, not SMTP, because Render's free tier blocks outbound SMTP ports.
+  resendApiKey: required('RESEND_API_KEY'),
+  emailFrom: process.env.EMAIL_FROM ?? 'Emma <emma@goldenleadgeneration.com.au>',
   transcriptEmailTo: process.env.TRANSCRIPT_EMAIL_TO ?? 'sales@goldenleadgeneration.com.au',
 
   // Misc
