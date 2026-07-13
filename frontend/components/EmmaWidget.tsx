@@ -256,20 +256,7 @@ export default function EmmaWidget() {
   return (
     <main className="shell">
       <header className="topbar">
-        <div className="brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/glg-logo.jpg"
-            alt="Golden Lead Generation"
-            style={{
-              height: 58,
-              width: 'auto',
-              maxWidth: 240,
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 8px 18px rgba(0,0,0,.35))',
-            }}
-          />
-        </div>
+        <div className="brand" />
         <div className="secure">
           <span className="secure-dot" /> Live voice demo · OpenAI Realtime
         </div>
