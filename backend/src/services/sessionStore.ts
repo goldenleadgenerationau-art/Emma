@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { CallSession, LeadDetails } from '../types/lead';
+import type { CallSession, LeadDetails, OfferedSlot } from '../types/lead';
 
 /**
  * Simple in-memory store keyed by our own session id (not the OpenAI realtime
@@ -47,6 +47,12 @@ export function appendTranscript(id: string, role: 'caller' | 'emma', text: stri
   const session = sessions.get(id);
   if (!session) return;
   session.transcript.push({ role, text, at: new Date().toISOString() });
+}
+
+export function setOfferedSlots(id: string, slots: OfferedSlot[]): void {
+  const session = sessions.get(id);
+  if (!session) return;
+  session.offeredSlots = slots;
 }
 
 export function attachCrmIds(

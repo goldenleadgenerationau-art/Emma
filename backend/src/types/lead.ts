@@ -14,6 +14,12 @@ export interface LeadDetails {
   consentToStore?: boolean;
 }
 
+export interface OfferedSlot {
+  slotNumber: number;
+  startTimeIso: string;
+  label: string;
+}
+
 export interface CallSession {
   id: string;
   createdAt: string;
@@ -21,5 +27,6 @@ export interface CallSession {
   ghlContactId?: string;
   ghlOpportunityId?: string;
   bookedAppointmentId?: string;
+  offeredSlots?: OfferedSlot[];
   transcript: { role: 'caller' | 'emma'; text: string; at: string }[];
 }

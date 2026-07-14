@@ -30,14 +30,14 @@ export function saveLeadDetails(sessionId: string, patch: Record<string, unknown
 }
 
 export function getAvailableSlots(sessionId: string, daysAhead?: number) {
-  return postJson<{ slots: { startTimeIso: string; label: string }[] }>(
+  return postJson<{ slots: { slotNumber: number; label: string }[] }>(
     '/api/tools/available-slots',
     { sessionId, daysAhead }
   );
 }
 
-export function bookAppointment(sessionId: string, startTimeIso: string) {
-  return postJson('/api/tools/book-appointment', { sessionId, startTimeIso });
+export function bookAppointment(sessionId: string, slotNumber: number) {
+  return postJson('/api/tools/book-appointment', { sessionId, slotNumber });
 }
 
 export function submitLeadToCrm(sessionId: string) {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { getSession, updateLead, attachCrmIds } from '../services/sessionStore';
+import { getSession, updateLead, attachCrmIds, setOfferedSlots } from '../services/sessionStore';
 import { getAvailableSlots, bookAppointment } from '../services/calendar';
 import { syncLeadToGhl, GhlConfigError } from '../services/ghl';
 
@@ -61,7 +61,13 @@ toolsRouter.post('/tools/available-slots', async (req, res) => {
   const daysAhead = typeof req.body?.daysAhead === 'number' ? req.body.daysAhead : 7;
   try {
     const slots = await getAvailableSlots(daysAhead);
-    res.json({ slots });
+    const offeredSlots = slots.map((slot, index) => ({ slotNumber: index + 1, ...slot }));
+    setOfferedSlots(sessionId, offeredSlots);
+    // Deliberately withhold startTimeIso from what the model sees - it must
+    // reference a slot by number, never retype a timestamp itself. See
+    // book-appointment below for why: a voice model retyping an exact ISO
+    // string from memory was the actual cause of "every slot is taken".
+    res.json({ slots: offeredSlots.map(({ slotNumber, label }) => ({ slotNumber, label })) });
   } catch (error) {
     console.error('[tools] available-slots failed', error);
     res.status(500).json({ error: 'Could not load calendar availability.' });
@@ -70,19 +76,30 @@ toolsRouter.post('/tools/available-slots', async (req, res) => {
 
 /**
  * POST /api/tools/book-appointment
- * Mirrors `book_demo_appointment`. Requires the lead to already have an
- * associated GHL contact - if `submit_lead_to_crm` hasn't run yet, we create
- * the contact here first so booking never fails purely on ordering.
+ * Mirrors `book_demo_appointment`. Takes a slotNumber (from the most recent
+ * get_available_demo_slots result) rather than a raw ISO time, so the model
+ * never has to retype an exact timestamp from memory - the real value is
+ * looked up server-side from what was actually offered.
+ * Requires the lead to already have an associated GHL contact - if
+ * `submit_lead_to_crm` hasn't run yet, we create the contact here first so
+ * booking never fails purely on ordering.
  */
 toolsRouter.post('/tools/book-appointment', async (req, res) => {
-  const { sessionId, startTimeIso } = req.body ?? {};
+  const { sessionId, slotNumber } = req.body ?? {};
   const session = requireSession(sessionId);
   if (!session) {
     res.status(404).json({ error: 'Unknown session' });
     return;
   }
-  if (typeof startTimeIso !== 'string') {
-    res.status(400).json({ error: 'startTimeIso is required' });
+  if (typeof slotNumber !== 'number') {
+    res.status(400).json({ error: 'slotNumber is required' });
+    return;
+  }
+  const chosen = session.offeredSlots?.find((slot) => slot.slotNumber === slotNumber);
+  if (!chosen) {
+    res.status(400).json({
+      error: 'That slot number is not from the current list. Call get_available_demo_slots again for a fresh list.',
+    });
     return;
   }
 
@@ -94,7 +111,7 @@ toolsRouter.post('/tools/book-appointment', async (req, res) => {
       attachCrmIds(sessionId, { ghlContactId: synced.contactId, ghlOpportunityId: synced.opportunityId });
     }
 
-    const result = await bookAppointment(contactId, startTimeIso);
+    const result = await bookAppointment(contactId, chosen.startTimeIso);
     if ('appointmentId' in result) {
       attachCrmIds(sessionId, { bookedAppointmentId: result.appointmentId });
     }

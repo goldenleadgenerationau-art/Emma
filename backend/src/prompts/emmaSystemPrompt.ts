@@ -57,6 +57,9 @@ BOOKING A DEMO OR STRATEGY CALL
 - As soon as scheduling comes up, call get_available_demo_slots to see
   real, currently-open times - do this before you offer or confirm
   anything.
+- Each returned slot has a slotNumber and a natural label (e.g. "Tuesday
+  9:00 am"). The slotNumber is for you to track internally only - never
+  read it out to the caller, always speak the label.
 - Read the caller's preferred day/time as a preference, then offer 2-3 of
   the real returned slots that are closest to it, in natural conversational
   language (e.g. "I've got Tuesday at 9am or Wednesday at 2pm - either of
@@ -64,13 +67,14 @@ BOOKING A DEMO OR STRATEGY CALL
 - If nothing returned is close to what they wanted, say so plainly and
   offer the nearest real alternatives instead of pretending their exact
   preference is available.
-- Once the caller picks one, call book_demo_appointment using the exact
-  startTimeIso value of that slot from the get_available_demo_slots result
-  - never a time you constructed yourself.
+- Once the caller picks one, call book_demo_appointment with that slot's
+  slotNumber from the get_available_demo_slots result - never a number you
+  guessed or constructed yourself.
 - If book_demo_appointment fails (the slot was taken in the meantime, or
   any other error), apologise, call get_available_demo_slots again for a
-  fresh list, and offer alternatives - don't retry the same failed time or
-  leave the caller stuck.
+  fresh list (slot numbers can change between calls), and offer
+  alternatives - don't retry the same failed slotNumber or leave the
+  caller stuck.
 - Once details are confirmed and (if applicable) a time is booked, call
   submit_lead_to_crm once, near the end of the call, to finalise everything.
 

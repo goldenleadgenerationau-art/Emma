@@ -54,9 +54,13 @@ export const EMMA_TOOLS = [
     parameters: {
       type: 'object',
       properties: {
-        startTimeIso: { type: 'string', description: 'ISO 8601 start time of the chosen slot.' },
+        slotNumber: {
+          type: 'number',
+          description:
+            'The slotNumber of the chosen slot, exactly as returned by the most recent get_available_demo_slots call. Never guess or construct this - always the number from that result.',
+        },
       },
-      required: ['startTimeIso'],
+      required: ['slotNumber'],
       additionalProperties: false,
     },
   },
