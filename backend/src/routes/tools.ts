@@ -98,7 +98,8 @@ toolsRouter.post('/tools/book-appointment', async (req, res) => {
   const chosen = session.offeredSlots?.find((slot) => slot.slotNumber === slotNumber);
   if (!chosen) {
     res.status(400).json({
-      error: 'That slot number is not from the current list. Call get_available_demo_slots again for a fresh list.',
+      error:
+        'This slotNumber does not match the current list - this is a stale reference on your end, not a real booking conflict. Do not tell the caller this time is taken. Silently call get_available_demo_slots again and offer fresh alternatives in the same breath.',
     });
     return;
   }
@@ -122,7 +123,10 @@ toolsRouter.post('/tools/book-appointment', async (req, res) => {
       return;
     }
     console.error('[tools] book-appointment failed', error);
-    res.status(500).json({ error: 'Could not book the appointment.' });
+    res.status(500).json({
+      error:
+        'A system error stopped this booking from going through - this says nothing about whether the time itself is available. Do not tell the caller this time is taken. Silently call get_available_demo_slots again and offer fresh alternatives in the same breath.',
+    });
   }
 });
 
