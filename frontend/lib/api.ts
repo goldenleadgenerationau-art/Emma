@@ -36,8 +36,8 @@ export function getAvailableSlots(sessionId: string, daysAhead?: number) {
   );
 }
 
-export function bookAppointment(sessionId: string, slotNumber: number) {
-  return postJson('/api/tools/book-appointment', { sessionId, slotNumber });
+export function bookAppointment(sessionId: string, slotNumber: number, label?: string) {
+  return postJson('/api/tools/book-appointment', { sessionId, slotNumber, label });
 }
 
 export function submitLeadToCrm(sessionId: string) {

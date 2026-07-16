@@ -85,7 +85,7 @@ toolsRouter.post('/tools/available-slots', async (req, res) => {
  * booking never fails purely on ordering.
  */
 toolsRouter.post('/tools/book-appointment', async (req, res) => {
-  const { sessionId, slotNumber } = req.body ?? {};
+  const { sessionId, slotNumber, label } = req.body ?? {};
   const session = requireSession(sessionId);
   if (!session) {
     res.status(404).json({ error: 'Unknown session' });
@@ -95,11 +95,23 @@ toolsRouter.post('/tools/book-appointment', async (req, res) => {
     res.status(400).json({ error: 'slotNumber is required' });
     return;
   }
-  const chosen = session.offeredSlots?.find((slot) => slot.slotNumber === slotNumber);
+  // slotNumber is reassigned on every get_available_demo_slots call, so if
+  // that ran more than once in a call (very normal - it's also the
+  // instructed recovery step on failure), a number the model correctly
+  // remembers from an earlier fetch can legitimately no longer match the
+  // current list even though nothing about the actual calendar changed.
+  // The label is what the model actually said out loud, so it survives
+  // re-fetches far more reliably - fall back to matching on that (exact,
+  // then case-insensitive) before treating this as a real mismatch.
+  let chosen = session.offeredSlots?.find((slot) => slot.slotNumber === slotNumber);
+  if (!chosen && typeof label === 'string' && label.trim()) {
+    const needle = label.trim().toLowerCase();
+    chosen = session.offeredSlots?.find((slot) => slot.label.toLowerCase() === needle);
+  }
   if (!chosen) {
     res.status(400).json({
       error:
-        'This slotNumber does not match the current list - this is a stale reference on your end, not a real booking conflict. Do not tell the caller this time is taken. Silently call get_available_demo_slots again and offer fresh alternatives in the same breath.',
+        'Neither slotNumber nor label match the current list - this is a stale reference on your end, not a real booking conflict. Do not tell the caller this time is taken. Silently call get_available_demo_slots again and offer fresh alternatives in the same breath.',
     });
     return;
   }

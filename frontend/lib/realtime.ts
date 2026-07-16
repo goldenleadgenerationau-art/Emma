@@ -236,7 +236,7 @@ async function dispatchToolCall(sessionId: string, dc: RTCDataChannel, event: an
         output = await getAvailableSlots(sessionId, args.daysAhead);
         break;
       case 'book_demo_appointment':
-        output = await bookAppointment(sessionId, args.slotNumber);
+        output = await bookAppointment(sessionId, args.slotNumber, args.label);
         break;
       case 'submit_lead_to_crm':
         output = await submitLeadToCrm(sessionId);

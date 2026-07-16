@@ -57,10 +57,15 @@ export const EMMA_TOOLS = [
         slotNumber: {
           type: 'number',
           description:
-            'The slotNumber of the chosen slot, exactly as returned by the most recent get_available_demo_slots call. Never guess or construct this - always the number from that result.',
+            'The slotNumber of the chosen slot from the most recent get_available_demo_slots call. Best effort - if get_available_demo_slots was called more than once this call, numbers can shift between calls, so this may be stale. Never guess or construct this.',
+        },
+        label: {
+          type: 'string',
+          description:
+            'The exact label of the chosen slot (e.g. "Tuesday 9:00 am") exactly as you said it to the caller, copied verbatim from the get_available_demo_slots result. Always include this alongside slotNumber - it is the reliable fallback match if the number turns out to be stale.',
         },
       },
-      required: ['slotNumber'],
+      required: ['slotNumber', 'label'],
       additionalProperties: false,
     },
   },
