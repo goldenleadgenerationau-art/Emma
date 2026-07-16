@@ -118,10 +118,28 @@ export async function triggerWorkflow(contactId: string): Promise<void> {
  * End-to-end: upsert the contact, create the opportunity, and trigger the
  * workflow that sends SMS + email confirmation. Returns the ids so the
  * frontend/transcript can reference them.
+ *
+ * The opportunity and workflow steps are best-effort and must not block the
+ * contact from being usable - a flaky pipeline/workflow config previously
+ * made the whole sync throw even though the contact itself was created fine,
+ * which in turn made book_demo_appointment fail for a reason that had
+ * nothing to do with the calendar (it never even reached the booking call).
  */
 export async function syncLeadToGhl(lead: LeadDetails) {
   const contactId = await upsertContact(lead);
-  const opportunityId = await createOpportunity(contactId, lead);
-  await triggerWorkflow(contactId);
+
+  let opportunityId: string | undefined;
+  try {
+    opportunityId = await createOpportunity(contactId, lead);
+  } catch (error) {
+    console.error('[ghl] createOpportunity failed, continuing with contact only', error);
+  }
+
+  try {
+    await triggerWorkflow(contactId);
+  } catch (error) {
+    console.error('[ghl] triggerWorkflow failed, continuing without it', error);
+  }
+
   return { contactId, opportunityId };
 }

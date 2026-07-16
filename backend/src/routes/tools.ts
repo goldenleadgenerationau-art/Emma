@@ -106,13 +106,26 @@ toolsRouter.post('/tools/book-appointment', async (req, res) => {
 
   try {
     let contactId = session.ghlContactId;
+    let freshlyCreatedContact = false;
     if (!contactId) {
       const synced = await syncLeadToGhl(session.lead);
       contactId = synced.contactId;
       attachCrmIds(sessionId, { ghlContactId: synced.contactId, ghlOpportunityId: synced.opportunityId });
+      freshlyCreatedContact = true;
     }
 
-    const result = await bookAppointment(contactId, chosen.startTimeIso);
+    let result;
+    try {
+      result = await bookAppointment(contactId, chosen.startTimeIso);
+    } catch (err) {
+      if (!freshlyCreatedContact) throw err;
+      // A contact created moments ago can lag behind before GHL's
+      // appointments API can see it - one short retry absorbs that
+      // propagation delay instead of surfacing a spurious failure that has
+      // nothing to do with the chosen time.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      result = await bookAppointment(contactId, chosen.startTimeIso);
+    }
     if ('appointmentId' in result) {
       attachCrmIds(sessionId, { bookedAppointmentId: result.appointmentId });
     }
