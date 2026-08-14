@@ -120,6 +120,20 @@ toolsRouter.post('/tools/book-appointment', async (req, res) => {
     let contactId = session.ghlContactId;
     let freshlyCreatedContact = false;
     if (!contactId) {
+      // GHL's contacts/upsert requires a phone or email to identify the
+      // contact - without either, it 400s before booking is even attempted.
+      // Surfacing this as its own error (rather than the generic booking
+      // failure below) matters: the generic failure tells Emma to silently
+      // retry with fresh slots, which can never fix a missing-contact-info
+      // problem and previously caused an infinite retry loop that never
+      // recovered.
+      if (!session.lead.mobile && !session.lead.email) {
+        res.status(400).json({
+          error:
+            'MISSING_CONTACT_INFO: Cannot book yet - no mobile number or email has been collected for this lead. This is not a scheduling issue, so do not retry with different slots. Ask the caller for their mobile number (or email), save it with save_lead_details, then call book_demo_appointment again with the same slot.',
+        });
+        return;
+      }
       const synced = await syncLeadToGhl(session.lead);
       contactId = synced.contactId;
       attachCrmIds(sessionId, { ghlContactId: synced.contactId, ghlOpportunityId: synced.opportunityId });
